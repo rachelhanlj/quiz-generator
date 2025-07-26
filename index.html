@@ -157,6 +157,45 @@
             background: #f0f4ff;
         }
         
+        .upload-methods {
+            margin-bottom: 20px;
+        }
+        
+        .method-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .tab-btn {
+            padding: 12px 24px;
+            background: #e9ecef;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            color: #6c757d;
+        }
+        
+        .tab-btn.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .tab-btn:hover {
+            background: #5a6fd8;
+            color: white;
+        }
+        
+        .upload-method {
+            display: none;
+        }
+        
+        .upload-method.active {
+            display: block;
+        }
+        
         .upload-zone {
             text-align: center;
             padding: 40px 20px;
@@ -173,6 +212,68 @@
             font-size: 3em;
             color: #667eea;
             margin-bottom: 15px;
+        }
+        
+        .text-input-zone {
+            text-align: center;
+        }
+        
+        .text-input-zone h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        
+        .text-input-zone textarea {
+            width: 100%;
+            min-height: 200px;
+            max-height: 400px;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 14px;
+            line-height: 1.6;
+            resize: vertical;
+            font-family: inherit;
+            transition: border-color 0.3s ease;
+        }
+        
+        .text-input-zone textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+        
+        .text-input-zone textarea::placeholder {
+            color: #999;
+            line-height: 1.4;
+        }
+        
+        .text-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+            padding: 8px 0;
+        }
+        
+        .text-info span {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .clear-btn {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background 0.3s ease;
+        }
+        
+        .clear-btn:hover {
+            background: #5a6268;
         }
         
         .file-input {
@@ -404,6 +505,30 @@
             .config-grid {
                 grid-template-columns: 1fr;
             }
+            
+            .method-tabs {
+                flex-direction: column;
+            }
+            
+            .tab-btn {
+                text-align: center;
+            }
+            
+            .text-input-zone textarea {
+                min-height: 150px;
+                font-size: 16px; /* 防止iOS自动缩放 */
+            }
+            
+            .text-info {
+                flex-direction: column;
+                gap: 10px;
+                align-items: stretch;
+            }
+            
+            .clear-btn {
+                align-self: flex-end;
+                width: fit-content;
+            }
         }
     </style>
 </head>
@@ -443,11 +568,31 @@
         </div>
         
         <div class="upload-section">
-            <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
-                <div class="upload-icon">📁</div>
-                <h3>点击或拖拽上传文件</h3>
-                <p>支持图片、PDF、文本文件</p>
-                <input type="file" id="fileInput" class="file-input" accept=".txt,.pdf,.jpg,.jpeg,.png,.doc,.docx" onchange="handleFileUpload(event)">
+            <div class="upload-methods">
+                <div class="method-tabs">
+                    <button class="tab-btn active" onclick="switchMethod('file')">📁 上传文件</button>
+                    <button class="tab-btn" onclick="switchMethod('text')">📝 粘贴文字</button>
+                </div>
+                
+                <div id="fileMethod" class="upload-method active">
+                    <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
+                        <div class="upload-icon">📁</div>
+                        <h3>点击或拖拽上传文件</h3>
+                        <p>支持图片、PDF、文本文件</p>
+                        <input type="file" id="fileInput" class="file-input" accept=".txt,.pdf,.jpg,.jpeg,.png,.doc,.docx" onchange="handleFileUpload(event)">
+                    </div>
+                </div>
+                
+                <div id="textMethod" class="upload-method">
+                    <div class="text-input-zone">
+                        <h3>📝 直接粘贴文字内容</h3>
+                        <textarea id="textInput" placeholder="请在此粘贴或输入您要生成题目的文章内容...&#10;&#10;支持中英文内容，系统会自动检测语言类型。" onpaste="handleTextPaste()" oninput="handleTextInput()"></textarea>
+                        <div class="text-info">
+                            <span id="textStats">字数: 0</span>
+                            <button type="button" onclick="clearText()" class="clear-btn">清空</button>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="file-info" id="fileInfo"></div>
         </div>
@@ -522,10 +667,126 @@
         let currentQuestions = [];
         let userAnswers = {};
         let fileContent = '';
+        let currentInputMethod = 'file'; // 'file' or 'text'
         let AI_CONFIG = {
             apiUrl: '',
             apiKey: ''
         };
+        
+        // 切换输入方式
+        function switchMethod(method) {
+            currentInputMethod = method;
+            
+            // 更新tab样式
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`[onclick="switchMethod('${method}')"]`).classList.add('active');
+            
+            // 显示对应的输入方式
+            document.querySelectorAll('.upload-method').forEach(el => el.classList.remove('active'));
+            document.getElementById(method + 'Method').classList.add('active');
+            
+            // 清空之前的内容
+            clearAllContent();
+        }
+        
+        // 处理文字粘贴
+        function handleTextPaste() {
+            // 使用setTimeout确保粘贴内容已经被处理
+            setTimeout(() => {
+                handleTextInput();
+            }, 10);
+        }
+        
+        // 处理文字输入
+        function handleTextInput() {
+            const textInput = document.getElementById('textInput');
+            const text = textInput.value.trim();
+            
+            // 更新字数统计
+            updateTextStats(text);
+            
+            if (text.length > 0) {
+                fileContent = text;
+                
+                // 自动检测语言
+                const detectedLanguage = detectLanguage(text);
+                document.querySelector(`input[name="language"][value="${detectedLanguage}"]`).checked = true;
+                
+                // 触发语言变化事件
+                const changeEvent = new Event('change');
+                document.querySelector(`input[name="language"][value="${detectedLanguage}"]`).dispatchEvent(changeEvent);
+                
+                // 显示内容信息
+                showContentInfo('text', text);
+                
+                // 启用生成按钮（如果API已配置）
+                if (AI_CONFIG.apiUrl && AI_CONFIG.apiKey) {
+                    document.getElementById('generateBtn').disabled = false;
+                }
+            } else {
+                fileContent = '';
+                hideContentInfo();
+                document.getElementById('generateBtn').disabled = true;
+            }
+        }
+        
+        // 更新文字统计
+        function updateTextStats(text) {
+            const wordCount = text.length;
+            const charCount = text.replace(/\s/g, '').length;
+            document.getElementById('textStats').textContent = 
+                `字数: ${wordCount} | 字符: ${charCount}`;
+        }
+        
+        // 清空文字
+        function clearText() {
+            document.getElementById('textInput').value = '';
+            handleTextInput();
+        }
+        
+        // 显示内容信息
+        function showContentInfo(type, content) {
+            const fileInfo = document.getElementById('fileInfo');
+            fileInfo.style.display = 'block';
+            
+            if (type === 'text') {
+                const detectedLanguage = detectLanguage(content);
+                const preview = content.substring(0, 150) + (content.length > 150 ? '...' : '');
+                
+                fileInfo.innerHTML = `
+                    <strong>📝 文字内容：</strong>已输入<br>
+                    <strong>内容长度：</strong>${content.length} 字符<br>
+                    <strong>检测语言：</strong>${detectedLanguage === 'chinese' ? '中文' : '英文'}<br>
+                    <strong>内容预览：</strong>${preview}
+                `;
+            } else {
+                // 保持原有的文件信息显示逻辑
+                const detectedLanguage = detectLanguage(content);
+                fileInfo.innerHTML = `
+                    <strong>已上传文件：</strong>${uploadedFile.name}<br>
+                    <strong>文件大小：</strong>${(uploadedFile.size / 1024).toFixed(2)} KB<br>
+                    <strong>文件类型：</strong>${uploadedFile.type || '未知'}<br>
+                    <strong>检测语言：</strong>${detectedLanguage === 'chinese' ? '中文' : '英文'}<br>
+                    <strong>内容预览：</strong>${content.substring(0, 100)}...
+                `;
+            }
+        }
+        
+        // 隐藏内容信息
+        function hideContentInfo() {
+            document.getElementById('fileInfo').style.display = 'none';
+        }
+        
+        // 清空所有内容
+        function clearAllContent() {
+            fileContent = '';
+            uploadedFile = null;
+            document.getElementById('fileInput').value = '';
+            document.getElementById('textInput').value = '';
+            updateTextStats('');
+            hideContentInfo();
+            document.getElementById('generateBtn').disabled = !AI_CONFIG.apiUrl || !AI_CONFIG.apiKey;
+        }
         
         // 页面加载时恢复API配置
         function loadAPIConfig() {
@@ -973,13 +1234,10 @@ ${text}
             const file = event.target.files[0];
             if (file) {
                 uploadedFile = file;
-                document.getElementById('fileInfo').style.display = 'block';
-                document.getElementById('fileInfo').innerHTML = `
-                    <strong>已上传文件：</strong>${file.name}<br>
-                    <strong>文件大小：</strong>${(file.size / 1024).toFixed(2)} KB<br>
-                    <strong>文件类型：</strong>${file.type || '未知'}<br>
-                    <div style="margin-top: 10px; color: #667eea;">📖 正在解析文件内容...</div>
-                `;
+                
+                // 切换到文件模式并显示信息
+                currentInputMethod = 'file';
+                showContentInfo('file', '正在解析文件内容...');
                 
                 // 使用FileReader读取文件内容
                 const reader = new FileReader();
@@ -1003,13 +1261,8 @@ ${text}
                     const changeEvent = new Event('change');
                     document.querySelector(`input[name="language"][value="${detectedLanguage}"]`).dispatchEvent(changeEvent);
                     
-                    document.getElementById('fileInfo').innerHTML = `
-                        <strong>已上传文件：</strong>${file.name}<br>
-                        <strong>文件大小：</strong>${(file.size / 1024).toFixed(2)} KB<br>
-                        <strong>文件类型：</strong>${file.type || '未知'}<br>
-                        <strong>检测语言：</strong>${detectedLanguage === 'chinese' ? '中文' : '英文'}<br>
-                        <strong>内容预览：</strong>${fileContent.substring(0, 100)}...
-                    `;
+                    // 显示文件信息
+                    showContentInfo('file', fileContent);
                     
                     // 如果API已配置，启用生成按钮
                     if (AI_CONFIG.apiUrl && AI_CONFIG.apiKey) {
@@ -1018,7 +1271,7 @@ ${text}
                 };
                 
                 reader.onerror = function() {
-                    document.getElementById('fileInfo').innerHTML += `<br><span style="color: red;">文件读取失败，请重试</span>`;
+                    showContentInfo('file', '文件读取失败，请重试');
                 };
                 
                 reader.readAsText(file, 'UTF-8');
@@ -1040,7 +1293,7 @@ ${text}
         // 生成题目
         async function generateQuiz() {
             if (!fileContent) {
-                alert('请先上传文件并等待内容解析完成！');
+                alert('请先上传文件或输入文字内容！');
                 return;
             }
             
@@ -1223,13 +1476,14 @@ ${text}
         
         // 重置测试
         function resetQuiz() {
-            uploadedFile = null;
-            fileContent = '';
+            // 清空所有内容
+            clearAllContent();
+            
+            // 重置题目相关
             currentQuestions = [];
             userAnswers = {};
             
-            document.getElementById('fileInput').value = '';
-            document.getElementById('fileInfo').style.display = 'none';
+            // 隐藏题目和结果区域
             document.getElementById('quizSection').style.display = 'none';
             document.getElementById('resultsSection').style.display = 'none';
             
@@ -1244,10 +1498,8 @@ ${text}
             document.getElementById('difficulty').value = 'cet4';
             document.getElementById('difficultyGroup').style.display = 'block';
             
-            // 检查是否需要禁用生成按钮
-            if (!AI_CONFIG.apiUrl || !AI_CONFIG.apiKey) {
-                document.getElementById('generateBtn').disabled = true;
-            }
+            // 重置输入方式到文件上传
+            switchMethod('file');
             
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
@@ -1257,22 +1509,28 @@ ${text}
         
         uploadZone.addEventListener('dragover', (e) => {
             e.preventDefault();
-            uploadZone.style.background = '#e8f2ff';
+            if (currentInputMethod === 'file') {
+                uploadZone.style.background = '#e8f2ff';
+            }
         });
         
         uploadZone.addEventListener('dragleave', (e) => {
             e.preventDefault();
-            uploadZone.style.background = '';
+            if (currentInputMethod === 'file') {
+                uploadZone.style.background = '';
+            }
         });
         
         uploadZone.addEventListener('drop', (e) => {
             e.preventDefault();
-            uploadZone.style.background = '';
-            
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                const mockEvent = { target: { files: files } };
-                handleFileUpload(mockEvent);
+            if (currentInputMethod === 'file') {
+                uploadZone.style.background = '';
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    const mockEvent = { target: { files: files } };
+                    handleFileUpload(mockEvent);
+                }
             }
         });
         
